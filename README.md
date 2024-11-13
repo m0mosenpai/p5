@@ -4,8 +4,8 @@ layout: default
 ---
 
 <mark> 
-**Updates:**
-Nov 13: test 21 updated
+Updates:
+* Nov 13: test 21 updated
 </mark>
 
 # CS537 Fall 2024, Project 5
