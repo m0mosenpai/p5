@@ -125,7 +125,7 @@ Now let's continue with our example. We need two physical pages because the virt
 ```c 
 char *mem = kalloc()
 ```
-and `mem` is the starting physical address of a free page we can use.
+and `mem` is the starting virtual address of a free page we can use.
 
 Note that we haven't actually *mapped* anything yet. We have just allocated virtual and physical addresses. To do the mapping, we need to place an entry in the page table. The `mappages` function does exactly that. In this case, the call to `mappages` would be something like the following:
 ```c
@@ -246,7 +246,7 @@ int getwmapinfo(struct wmapinfo *wminfo);
 * `wminfo`: A pointer to `struct wmapinfo` that will be filled by the system call.
 
 Add a new system call `getwmapinfo` to retrieve information about the process address space by populating `struct wmapinfo`. 
-This system call should calculate the current number of memory maps (mmaps) in the process's address space and store the result in `total_mmaps`. It should also populate `addr[MAX_WMMAP_INFO]` and `length[MAX_WMAP_INFO]` with the address and length of each wmap. You can expect that the number of mmaps in the current process will not exceed `MAX_UPAGE_INFO`. The `n_loaded_pages[MAX_WMAP_INFO]` should store how many pages have been physically allocated for each wmap (corresponding index of `addr` and `length` arrays). This field should reflect lazy allocation.
+This system call should calculate the current number of memory maps (mmaps) in the process's address space and store the result in `total_mmaps`. It should also populate `addr[MAX_WMMAP_INFO]` and `length[MAX_WMAP_INFO]` with the address and length of each wmap. You can expect that the number of mmaps in the current process will not exceed `MAX_WMAP_INFO`. The `n_loaded_pages[MAX_WMAP_INFO]` should store how many pages have been physically allocated for each wmap (corresponding index of `addr` and `length` arrays). This field should reflect lazy allocation.
 
 ## Return Values
 `SUCCESS` and `FAILED` are defined in `wmap.h` to be 0 and -1, respectively (see *[Hints](#hints)*).
