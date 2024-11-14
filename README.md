@@ -7,10 +7,11 @@ layout: default
 Update
 </mark>
 
+* Nov 14: test 18 updated
 * Nov 13: test 21 updated
 
 <mark> 
-End updates
+End Update
 </mark>
 
 # CS537 Fall 2024, Project 5
