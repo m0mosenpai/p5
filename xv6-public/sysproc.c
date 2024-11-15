@@ -117,7 +117,7 @@ sys_wmap(void) {
   if ((length <= 0)                                                ||
     (flags & MAP_FIXED) != MAP_FIXED                               ||
     (flags & MAP_SHARED) != MAP_SHARED                             ||
-    (flags & MAP_ANONYMOUS) != MAP_ANONYMOUS && fd < 0             ||
+    (flags & MAP_ANONYMOUS) != (MAP_ANONYMOUS && fd < 0)           ||
     (addr % PGSIZE != 0 || (addr < 0x60000000 || addr > KERNBASE))
   ) return FAILED;
 
@@ -162,16 +162,29 @@ sys_wunmap(void) {
 int
 sys_va2pa(void) {
   uint va;
+  uint pa;
 
-  // TO-DO: translate va->pa and return pa
   if (argint(0, (int*)&va) < 0)
     return FAILED;
 
-  return 0;
+  pde_t *pgdir = myproc()->pgdir;  
+  pte_t *pte = walkpgdir(pgdir, (void *)(uintptr_t)va, 0);
+  if (!pte || !(*pte & PTE_P)) 
+        return FAILED; 
+
+  pa = PTE_ADDR(*pte); 
+  pa |= va & 0xFFF; 
+  return pa;
+
 }
 
 int
 sys_getwmapinfo(void) {
-  // TO-DO: populate struct
-  return 0;
+  //struct proc *currproc = myproc();
+  struct wmapinfo *info;
+
+  if (argptr(0, (void *)&info, sizeof(struct wmapinfo)) < 0)
+        return FAILED;
+
+  return SUCCESS;
 }
