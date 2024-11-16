@@ -217,11 +217,14 @@ sys_va2pa(void) {
 
 int
 sys_getwmapinfo(void) {
-  //struct proc *currproc = myproc();
+  // struct proc *currproc;
   struct wmapinfo *info;
+  // struct mmap *p_mmaps;
 
   if (argptr(0, (void *)&info, sizeof(struct wmapinfo)) < 0)
         return FAILED;
 
+  getwmapinfo(info);
+  
   return SUCCESS;
 }
