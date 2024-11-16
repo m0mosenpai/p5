@@ -6,7 +6,6 @@
 #include "memlayout.h"
 #include "mmu.h"
 #include "proc.h"
-#include "wmap.h"
 #include "vm.h"
 #include "stdint.h"
 #include <stdint.h>
@@ -114,22 +113,43 @@ sys_wmap(void) {
   // flags should always be set to MAP_FIXED and MAP_SHARED
   // fd should be valid if MAP_ANONYMOUS is not set
   // addr should be valid and page divisible
-  if ((length <= 0)                                                ||
-    (flags & MAP_FIXED) != MAP_FIXED                               ||
-    (flags & MAP_SHARED) != MAP_SHARED                             ||
-    (flags & MAP_ANONYMOUS) != (MAP_ANONYMOUS && fd < 0)           ||
-    (addr % PGSIZE != 0 || (addr < 0x60000000 || addr > KERNBASE))
+  if ((length <= 0)                                      ||
+    (flags & MAP_FIXED) != MAP_FIXED                     ||
+    (flags & MAP_SHARED) != MAP_SHARED                   ||
+    (flags & MAP_ANONYMOUS) != (MAP_ANONYMOUS && fd < 0) ||
+    (addr % PGSIZE != 0 || (addr < 0x60000000 || addr + length > KERNBASE))
   ) return FAILED;
+
+  struct proc *curproc = myproc();
+  struct mmap *p_mmaps = curproc->mmaps;
+
+  int i = 0;
+  while (p_mmaps[i].valid == 1) { i++; }
+  if (i >= MAX_WMMAP_INFO) return FAILED;
+  int free = i;
+
+  for (i = 0; i < MAX_WMMAP_INFO; i++) {
+    if (p_mmaps[i].valid == 0)
+        continue;
+    if ((p_mmaps[i].addr <= addr && addr <= p_mmaps[i].addr + p_mmaps[i].length) ||
+      (p_mmaps[i].addr <= addr + length && addr + length <= p_mmaps[i].addr + p_mmaps[i].length)
+    ) return FAILED;
+  }
 
   // TO-DO: handle MAP_SHARED/ MAP_ANONYMOUS
   // TO-DO: lazy mapping
-  int i;
   for (i = 0; i < length / PGSIZE; i++) {
     char *mem = kalloc();
     if (mem == 0) return FAILED;
     pde_t *pgdir = myproc()->pgdir;
     mappages(pgdir, (void*)(uintptr_t)(addr + i*PGSIZE), PGSIZE, V2P((uintptr_t)mem), PTE_W | PTE_U);
   }
+
+  // TO-DO: need locks?
+  p_mmaps[free].addr = addr;
+  p_mmaps[free].length = length;
+  p_mmaps[free].flags = flags;
+  p_mmaps[free].valid = 1;
 
   return addr;
 }

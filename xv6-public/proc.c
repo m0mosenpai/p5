@@ -88,6 +88,12 @@ allocproc(void)
 found:
   p->state = EMBRYO;
   p->pid = nextpid++;
+  for (int i = 0; i < MAX_WMMAP_INFO; i++) {
+      p->mmaps[i].addr = 0;
+      p->mmaps[i].length = 0;
+      p->mmaps[i].flags = 0;
+      p->mmaps[i].valid = 0;
+  }
 
   release(&ptable.lock);
 
