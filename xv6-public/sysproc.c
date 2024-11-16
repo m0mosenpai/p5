@@ -165,17 +165,34 @@ sys_wunmap(void) {
   if (addr % PGSIZE != 0 || (addr < 0x60000000 || addr > KERNBASE))
     return FAILED;
 
-  // TO-DO: loop and unmap all pages (when to end loop??)
+  struct proc *curproc = myproc();
+  struct mmap *p_mmaps = curproc->mmaps;
+
+  int entry = -1;
+  int length = 0;
+  /*int flags = 0;*/
+  for (int i = 0; i < MAX_WMMAP_INFO; i++) {
+    if (p_mmaps[i].addr == addr) {
+      entry = i;
+      length = p_mmaps[i].length;
+      /*flags = p_mmaps[i].flags;*/
+      break;
+    }
+  }
+  if (entry == -1)
+      return FAILED;
+
   // TO-DO: lazy unmapping
+  // TO-DO: handle MAP_SHARED/ MAP_ANONYMOUS
   pde_t *pgdir = myproc()->pgdir;
-  pte_t *pte = walkpgdir(pgdir, (void*)(uintptr_t)addr, 0);
-  // addr should have a valid PTE
-  if (pte == 0) return FAILED;
-
-  uint phys_addr = PTE_ADDR(*pte);
-  kfree(P2V((uintptr_t)phys_addr));
-  *pte = 0;
-
+  for (int i = 0; i < length; i++) {
+    pte_t *pte = walkpgdir(pgdir, (void*)(uintptr_t)addr + i*PGSIZE, 0);
+    if (pte == 0) return FAILED;
+    uint phys_addr = PTE_ADDR(*pte);
+    kfree(P2V((uintptr_t)phys_addr));
+    *pte = 0;
+  }
+  p_mmaps[entry].valid = 0;
   return SUCCESS;
 }
 
