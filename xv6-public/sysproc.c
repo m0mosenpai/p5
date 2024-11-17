@@ -113,10 +113,10 @@ sys_wmap(void) {
   // flags should always be set to MAP_FIXED and MAP_SHARED
   // fd should be valid if MAP_ANONYMOUS is not set
   // addr should be valid and page divisible
-  if ((length <= 0)                                      ||
-    (flags & MAP_FIXED) != MAP_FIXED                     ||
-    (flags & MAP_SHARED) != MAP_SHARED                   ||
-    (flags & MAP_ANONYMOUS) != (MAP_ANONYMOUS && fd < 0) ||
+  if ((length <= 0)                                        ||
+    ((flags & MAP_FIXED) != MAP_FIXED)                     ||
+    ((flags & MAP_SHARED) != MAP_SHARED)                   ||
+    ((flags & MAP_ANONYMOUS) != MAP_ANONYMOUS && (fd < 0)) ||
     (addr % PGSIZE != 0 || (addr < 0x60000000 || addr + length > KERNBASE))
   ) return FAILED;
 
@@ -162,7 +162,7 @@ sys_wunmap(void) {
     return FAILED;
 
   // addr should be valid and page divisible
-  if (addr % PGSIZE != 0 || (addr < 0x60000000 || addr > KERNBASE))
+  if (addr % PGSIZE != 0 || (addr < 0x60000000 || addr >= KERNBASE))
     return FAILED;
 
   struct proc *curproc = myproc();
