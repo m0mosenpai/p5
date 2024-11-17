@@ -217,13 +217,26 @@ sys_va2pa(void) {
 
 int
 sys_getwmapinfo(void) {
-  struct wmapinfo *info;
-  if (argptr(0, (void *)&info, sizeof(struct wmapinfo)) < 0)
+  struct wmapinfo *wminfo;
+  struct mmap *p_mmaps;
+  int total_mmaps = 0;
+  int i;
+
+  if (argptr(0, (void *)&wminfo, sizeof(struct wmapinfo)) < 0)
     return FAILED;
 
-  if (info == 0)
+  if (wminfo == 0)
     return FAILED;
 
-  getwmapinfo(info);
+  p_mmaps = myproc()->mmaps;
+  for (i = 0; i < MAX_WMMAP_INFO; i++) {
+    if (p_mmaps[i].valid == 1){
+      wminfo->addr[i] = p_mmaps[i].addr;
+      wminfo->length[i] = p_mmaps[i].length;
+      wminfo->n_loaded_pages[i] = p_mmaps[i].addr / p_mmaps[i].length;
+      total_mmaps++;
+    }
+  }
+  wminfo->total_mmaps = total_mmaps;
   return SUCCESS;
 }

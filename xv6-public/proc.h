@@ -66,5 +66,3 @@ struct proc {
 //   original data and bss
 //   fixed-size stack
 //   expandable heap
-
-void getwmapinfo(struct wmapinfo *wminfo);
