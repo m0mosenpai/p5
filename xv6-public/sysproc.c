@@ -180,7 +180,7 @@ sys_wunmap(void) {
     }
   }
   if (entry == -1)
-      return FAILED;
+    return FAILED;
 
   // TO-DO: lazy unmapping
   // TO-DO: handle MAP_SHARED/ MAP_ANONYMOUS
@@ -206,8 +206,8 @@ sys_va2pa(void) {
 
   pde_t *pgdir = myproc()->pgdir;  
   pte_t *pte = walkpgdir(pgdir, (void *)(uintptr_t)va, 0);
-  if (!pte || !(*pte & PTE_P)) 
-        return FAILED; 
+  if (!pte || !(*pte & PTE_P))
+    return FAILED; 
 
   pa = PTE_ADDR(*pte); 
   pa |= va & 0xFFF; 
@@ -217,14 +217,13 @@ sys_va2pa(void) {
 
 int
 sys_getwmapinfo(void) {
-  // struct proc *currproc;
   struct wmapinfo *info;
-  // struct mmap *p_mmaps;
-
   if (argptr(0, (void *)&info, sizeof(struct wmapinfo)) < 0)
-        return FAILED;
+    return FAILED;
+
+  if (info == 0)
+    return FAILED;
 
   getwmapinfo(info);
-  
   return SUCCESS;
 }

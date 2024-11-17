@@ -540,27 +540,21 @@ procdump(void)
 }
 
 void getwmapinfo(struct wmapinfo *info){
-  acquire(&ptable.lock);
-
   struct proc *currproc;
   struct mmap *p_mmaps;
 
-  int total_mmaps = 0;
   for (int i = 0; i < NPROC; i++) {
     currproc = &ptable.proc[i];
     if (currproc->state != UNUSED) {
       p_mmaps = currproc->mmaps;
       for (int j = 0; j < MAX_WMMAP_INFO; j++) {
-        if (p_mmaps[j].valid != 0){
-          total_mmaps++;
+        if (p_mmaps[j].valid == 1){
           info->addr[j] = p_mmaps[j].addr;
           info->length[j] = p_mmaps[j].length;
-          info->n_loaded_pages[j] = p_mmaps[j].addr/p_mmaps[j].length; 
+          info->n_loaded_pages[j] = p_mmaps[j].addr / p_mmaps[j].length;
+          info->total_mmaps++;
         }
       }
-      info->total_mmaps = total_mmaps;
-    } 
+    }
   }
-
-  release(&ptable.lock);
 }
