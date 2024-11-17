@@ -211,10 +211,12 @@ fork(void)
 
   // Copy mmaps
   for (i = 0; i < MAX_WMMAP_INFO; i++) {
-    np->mmaps[i].addr = curproc->mmaps[i].addr;
-    np->mmaps[i].length = curproc->mmaps[i].length;
-    np->mmaps[i].flags = curproc->mmaps[i].flags;
-    np->mmaps[i].valid = curproc->mmaps[i].valid;
+    if (curproc->mmaps[i].valid == 1) {
+      np->mmaps[i].addr = curproc->mmaps[i].addr;
+      np->mmaps[i].length = curproc->mmaps[i].length;
+      np->mmaps[i].flags = curproc->mmaps[i].flags;
+      np->mmaps[i].valid = curproc->mmaps[i].valid;
+    }
   }
 
   // Clear %eax so that fork returns 0 in the child.
@@ -247,6 +249,7 @@ exit(void)
   struct proc *curproc = myproc();
   pde_t *pgdir = curproc->pgdir;
   struct proc *p;
+  struct mmap *p_mmaps;
   int fd;
   int i;
 
@@ -263,11 +266,11 @@ exit(void)
 
   // Unmap pages
   for (i = 0; i < MAX_WMMAP_INFO; i++) {
-    if (curproc->mmaps[i].valid == 1) {
-      struct mmap *p_mmaps = curproc->mmaps;
+    p_mmaps = curproc->mmaps;
+    if (p_mmaps[i].valid == 1) {
       int addr = p_mmaps[i].addr;
       int length = p_mmaps[i].length;
-      for (int j = 0; j < length; j++) {
+      for (int j = 0; j < length / PGSIZE; j++) {
         pte_t *pte = walkpgdir(pgdir, (void*)(uintptr_t)addr + j*PGSIZE, 0);
         uint phys_addr = PTE_ADDR(*pte);
         kfree(P2V((uintptr_t)phys_addr));

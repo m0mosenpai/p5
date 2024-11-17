@@ -180,7 +180,7 @@ sys_wunmap(void) {
   // TO-DO: lazy unmapping
   // TO-DO: handle MAP_SHARED/ MAP_ANONYMOUS
   pde_t *pgdir = myproc()->pgdir;
-  for (int i = 0; i < length; i++) {
+  for (int i = 0; i < length / PGSIZE; i++) {
     pte_t *pte = walkpgdir(pgdir, (void*)(uintptr_t)addr + i*PGSIZE, 0);
     if (pte == 0) return FAILED;
     uint phys_addr = PTE_ADDR(*pte);
