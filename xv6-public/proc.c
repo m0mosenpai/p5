@@ -538,23 +538,3 @@ procdump(void)
     cprintf("\n");
   }
 }
-
-void getwmapinfo(struct wmapinfo *info){
-  struct proc *currproc;
-  struct mmap *p_mmaps;
-
-  for (int i = 0; i < NPROC; i++) {
-    currproc = &ptable.proc[i];
-    if (currproc->state != UNUSED) {
-      p_mmaps = currproc->mmaps;
-      for (int j = 0; j < MAX_WMMAP_INFO; j++) {
-        if (p_mmaps[j].valid == 1){
-          info->addr[j] = p_mmaps[j].addr;
-          info->length[j] = p_mmaps[j].length;
-          info->n_loaded_pages[j] = p_mmaps[j].addr / p_mmaps[j].length;
-          info->total_mmaps++;
-        }
-      }
-    }
-  }
-}
