@@ -98,6 +98,8 @@ sys_uptime(void)
 
 int
 sys_wmap(void) {
+  int anon = MAP_FIXED | MAP_ANONYMOUS | MAP_SHARED;
+  int filebacked = MAP_FIXED | MAP_SHARED;
   uint addr;
   int length;
   int flags;
@@ -110,13 +112,12 @@ sys_wmap(void) {
   ) return FAILED;
 
   // length should be positive,
-  // flags should always be set to MAP_FIXED and MAP_SHARED
+  // flags should either filebacked or anonymous
   // fd should be valid if MAP_ANONYMOUS is not set
   // addr should be valid and page divisible
   if ((length <= 0)                                        ||
-    ((flags & MAP_FIXED) != MAP_FIXED)                     ||
-    ((flags & MAP_SHARED) != MAP_SHARED)                   ||
-    ((flags & MAP_ANONYMOUS) != MAP_ANONYMOUS && (fd < 0)) ||
+    (flags != filebacked && flags != anon)                 ||
+    (flags == filebacked && fd < 0)                        ||
     (addr % PGSIZE != 0 || (addr < 0x60000000 || addr + length > KERNBASE))
   ) return FAILED;
 
@@ -145,7 +146,6 @@ sys_wmap(void) {
     mappages(pgdir, (void*)(uintptr_t)(addr + i*PGSIZE), PGSIZE, V2P((uintptr_t)mem), PTE_W | PTE_U);
   }
 
-  // TO-DO: need locks?
   p_mmaps[free].addr = addr;
   p_mmaps[free].length = length;
   p_mmaps[free].flags = flags;
