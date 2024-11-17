@@ -132,8 +132,8 @@ sys_wmap(void) {
   for (i = 0; i < MAX_WMMAP_INFO; i++) {
     if (p_mmaps[i].valid == 0)
         continue;
-    if ((p_mmaps[i].addr <= addr && addr <= p_mmaps[i].addr + p_mmaps[i].length) ||
-      (p_mmaps[i].addr <= addr + length && addr + length <= p_mmaps[i].addr + p_mmaps[i].length)
+    if ((p_mmaps[i].addr <= addr && addr < p_mmaps[i].addr + p_mmaps[i].length) ||
+      (p_mmaps[i].addr < addr + length && addr + length <= p_mmaps[i].addr + p_mmaps[i].length)
     ) return FAILED;
   }
 
