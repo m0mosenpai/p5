@@ -8,7 +8,6 @@
 #include "proc.h"
 #include "vm.h"
 #include "stdint.h"
-#include <stdint.h>
 
 extern pte_t* walkpgdir(pde_t *pgdir, const void *va, int alloc);
 extern int mappages(pde_t *pgdir, void *va, uint size, uint pa, int perm);
@@ -111,10 +110,6 @@ sys_wmap(void) {
     argint(3, (int*)&fd)     < 0
   ) return FAILED;
 
-  // length should be positive,
-  // flags should either filebacked or anonymous
-  // fd should be valid if MAP_ANONYMOUS is not set
-  // addr should be valid and page divisible
   if ((length <= 0)                                        ||
     (flags != filebacked && flags != anon)                 ||
     (flags == filebacked && fd < 0)                        ||
@@ -172,7 +167,7 @@ sys_wunmap(void) {
   int length = 0;
   /*int flags = 0;*/
   for (int i = 0; i < MAX_WMMAP_INFO; i++) {
-    if (p_mmaps[i].addr == addr) {
+    if (p_mmaps[i].addr == addr && p_mmaps[i].valid == 1) {
       entry = i;
       length = p_mmaps[i].length;
       /*flags = p_mmaps[i].flags;*/

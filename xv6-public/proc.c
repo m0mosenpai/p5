@@ -6,6 +6,9 @@
 #include "x86.h"
 #include "proc.h"
 #include "spinlock.h"
+#include "stdint.h"
+
+extern pte_t* walkpgdir(pde_t *pgdir, const void *va, int alloc);
 
 struct {
   struct spinlock lock;
@@ -206,6 +209,14 @@ fork(void)
   np->parent = curproc;
   *np->tf = *curproc->tf;
 
+  // Copy mmaps
+  for (i = 0; i < MAX_WMMAP_INFO; i++) {
+    np->mmaps[i].addr = curproc->mmaps[i].addr;
+    np->mmaps[i].length = curproc->mmaps[i].length;
+    np->mmaps[i].flags = curproc->mmaps[i].flags;
+    np->mmaps[i].valid = curproc->mmaps[i].valid;
+  }
+
   // Clear %eax so that fork returns 0 in the child.
   np->tf->eax = 0;
 
@@ -234,8 +245,10 @@ void
 exit(void)
 {
   struct proc *curproc = myproc();
+  pde_t *pgdir = curproc->pgdir;
   struct proc *p;
   int fd;
+  int i;
 
   if(curproc == initproc)
     panic("init exiting");
@@ -245,6 +258,22 @@ exit(void)
     if(curproc->ofile[fd]){
       fileclose(curproc->ofile[fd]);
       curproc->ofile[fd] = 0;
+    }
+  }
+
+  // Unmap pages
+  for (i = 0; i < MAX_WMMAP_INFO; i++) {
+    if (curproc->mmaps[i].valid == 1) {
+      struct mmap *p_mmaps = curproc->mmaps;
+      int addr = p_mmaps[i].addr;
+      int length = p_mmaps[i].length;
+      for (int j = 0; j < length; j++) {
+        pte_t *pte = walkpgdir(pgdir, (void*)(uintptr_t)addr + j*PGSIZE, 0);
+        uint phys_addr = PTE_ADDR(*pte);
+        kfree(P2V((uintptr_t)phys_addr));
+        *pte = 0;
+      }
+      p_mmaps[i].valid = 0;
     }
   }
 
