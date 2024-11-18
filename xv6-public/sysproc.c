@@ -251,7 +251,7 @@ sys_getwmapinfo(void) {
     if (p_mmaps[i].valid == 1){
       wminfo->addr[i] = p_mmaps[i].addr;
       wminfo->length[i] = p_mmaps[i].length;
-      wminfo->n_loaded_pages[i] = p_mmaps[i].addr / p_mmaps[i].length;
+      wminfo->n_loaded_pages[i] = p_mmaps[i].length / PGSIZE;
       total_mmaps++;
     }
   }
