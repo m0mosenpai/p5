@@ -261,14 +261,6 @@ exit(void)
   if(curproc == initproc)
     panic("init exiting");
 
-  // Close all open files.
-  for(fd = 0; fd < NOFILE; fd++){
-    if(curproc->ofile[fd]){
-      fileclose(curproc->ofile[fd]);
-      curproc->ofile[fd] = 0;
-    }
-  }
-
   // Unmap pages
   for (i = 0; i < MAX_WMMAP_INFO; i++) {
     int addr = p_mmaps[i].addr;
@@ -290,6 +282,14 @@ exit(void)
       }
       p_mmaps[i].valid = 0;
     }
+  }
+
+  // Close all open files.
+  for(fd = 0; fd < NOFILE; fd++){
+      if(curproc->ofile[fd]){
+          fileclose(curproc->ofile[fd]);
+          curproc->ofile[fd] = 0;
+      }
   }
 
   begin_op();
