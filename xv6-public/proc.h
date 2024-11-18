@@ -19,6 +19,7 @@ struct mmap {
     uint addr;
     int length;
     int flags;
+    struct file *file;
     int valid;
 };
 

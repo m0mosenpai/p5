@@ -8,6 +8,10 @@
 #include "proc.h"
 #include "vm.h"
 #include "stdint.h"
+#include "spinlock.h"
+#include "sleeplock.h"
+#include "fs.h"
+#include "file.h"
 
 extern pte_t* walkpgdir(pde_t *pgdir, const void *va, int alloc);
 extern int mappages(pde_t *pgdir, void *va, uint size, uint pa, int perm);
@@ -99,6 +103,7 @@ int
 sys_wmap(void) {
   int anon = MAP_FIXED | MAP_ANONYMOUS | MAP_SHARED;
   int filebacked = MAP_FIXED | MAP_SHARED;
+
   uint addr;
   int length;
   int flags;
@@ -110,14 +115,22 @@ sys_wmap(void) {
     argint(3, (int*)&fd)     < 0
   ) return FAILED;
 
-  if ((length <= 0)                                        ||
-    (flags != filebacked && flags != anon)                 ||
-    (flags == filebacked && fd < 0)                        ||
+  if ((length <= 0)                        ||
+    (flags != filebacked && flags != anon) ||
+    (flags == filebacked && fd < 0)        ||
     (addr % PGSIZE != 0 || (addr < 0x60000000 || addr + length > KERNBASE))
   ) return FAILED;
 
   struct proc *curproc = myproc();
+  pde_t *pgdir = myproc()->pgdir;
   struct mmap *p_mmaps = curproc->mmaps;
+  struct file *file = 0;
+
+  if (flags == filebacked) {
+    file = curproc->ofile[fd];
+    if (file == 0 || file->readable == 0)
+      return FAILED;
+  }
 
   int i = 0;
   while (p_mmaps[i].valid == 1) { i++; }
@@ -125,25 +138,28 @@ sys_wmap(void) {
   int free = i;
 
   for (i = 0; i < MAX_WMMAP_INFO; i++) {
-    if (p_mmaps[i].valid == 0)
-        continue;
+    if (p_mmaps[i].valid == 0) continue;
     if ((p_mmaps[i].addr <= addr && addr < p_mmaps[i].addr + p_mmaps[i].length) ||
       (p_mmaps[i].addr < addr + length && addr + length <= p_mmaps[i].addr + p_mmaps[i].length)
     ) return FAILED;
   }
 
-  // TO-DO: handle MAP_SHARED/ MAP_ANONYMOUS
   // TO-DO: lazy mapping
   for (i = 0; i < length / PGSIZE; i++) {
     char *mem = kalloc();
     if (mem == 0) return FAILED;
-    pde_t *pgdir = myproc()->pgdir;
+    if (flags == filebacked) {
+      ilock(file->ip);
+      readi(file->ip, mem, i*PGSIZE, PGSIZE);
+      iunlock(file->ip);
+    }
     mappages(pgdir, (void*)(uintptr_t)(addr + i*PGSIZE), PGSIZE, V2P((uintptr_t)mem), PTE_W | PTE_U);
   }
 
   p_mmaps[free].addr = addr;
   p_mmaps[free].length = length;
   p_mmaps[free].flags = flags;
+  p_mmaps[free].file = flags == filebacked ? file : 0;
   p_mmaps[free].valid = 1;
 
   return addr;
@@ -156,21 +172,22 @@ sys_wunmap(void) {
   if (argint(0, (int*)&addr) < 0)
     return FAILED;
 
-  // addr should be valid and page divisible
   if (addr % PGSIZE != 0 || (addr < 0x60000000 || addr >= KERNBASE))
     return FAILED;
 
   struct proc *curproc = myproc();
   struct mmap *p_mmaps = curproc->mmaps;
 
+  int i;
+  int length;
+  struct file *file;
   int entry = -1;
-  int length = 0;
-  /*int flags = 0;*/
-  for (int i = 0; i < MAX_WMMAP_INFO; i++) {
+
+  for (i = 0; i < MAX_WMMAP_INFO; i++) {
     if (p_mmaps[i].addr == addr && p_mmaps[i].valid == 1) {
-      entry = i;
       length = p_mmaps[i].length;
-      /*flags = p_mmaps[i].flags;*/
+      file = p_mmaps[i].file;
+      entry = i;
       break;
     }
   }
@@ -178,16 +195,22 @@ sys_wunmap(void) {
     return FAILED;
 
   // TO-DO: lazy unmapping
-  // TO-DO: handle MAP_SHARED/ MAP_ANONYMOUS
   pde_t *pgdir = myproc()->pgdir;
-  for (int i = 0; i < length / PGSIZE; i++) {
+  for (i = 0; i < length / PGSIZE; i++) {
+    // va in user va space -> pa -> pa in kernel va space
     pte_t *pte = walkpgdir(pgdir, (void*)(uintptr_t)addr + i*PGSIZE, 0);
     if (pte == 0) return FAILED;
-    uint phys_addr = PTE_ADDR(*pte);
-    kfree(P2V((uintptr_t)phys_addr));
+    char* phys_addr = P2V((uintptr_t)PTE_ADDR(*pte));
+    if (file != 0) {
+        ilock(file->ip);
+        writei(file->ip, phys_addr, i*PGSIZE, PGSIZE);
+        iunlock(file->ip);
+    }
+    kfree(phys_addr);
     *pte = 0;
   }
   p_mmaps[entry].valid = 0;
+  if (file != 0) fileclose(file);
   return SUCCESS;
 }
 
