@@ -289,7 +289,6 @@ exit(void)
         *pte = 0;
       }
       p_mmaps[i].valid = 0;
-      if (file != 0) fileclose(file);
     }
   }
 
