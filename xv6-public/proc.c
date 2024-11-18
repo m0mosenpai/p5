@@ -274,7 +274,7 @@ exit(void)
         char* phys_addr = P2V((uintptr_t)PTE_ADDR(*pte));
         if (file != 0) {
             ilock(file->ip);
-            writei(file->ip, phys_addr, i*PGSIZE, PGSIZE);
+            writei(file->ip, phys_addr, j*PGSIZE, PGSIZE);
             iunlock(file->ip);
         }
         kfree(phys_addr);
