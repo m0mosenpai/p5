@@ -149,9 +149,8 @@ sys_wmap(void) {
     char *mem = kalloc();
     if (mem == 0) return FAILED;
     if (file != 0) {
-      ilock(file->ip);
-      readi(file->ip, mem, i*PGSIZE, PGSIZE);
-      iunlock(file->ip);
+      file->off = i*PGSIZE;
+      fileread(file, mem, PGSIZE);
     }
     if (mappages(pgdir, (void*)(uintptr_t)(addr + i*PGSIZE), PGSIZE, V2P((uintptr_t)mem), PTE_W | PTE_U) < 0) {
       kfree(mem);
@@ -162,7 +161,7 @@ sys_wmap(void) {
   p_mmaps[free].addr = addr;
   p_mmaps[free].length = length;
   p_mmaps[free].flags = flags;
-  p_mmaps[free].file = file;
+  p_mmaps[free].file = file != 0 ? filedup(file) : 0;
   p_mmaps[free].valid = 1;
   return addr;
 }
@@ -182,7 +181,7 @@ sys_wunmap(void) {
 
   int i;
   int length;
-  struct file *file;
+  struct file *file = 0;
   int entry = -1;
 
   for (i = 0; i < MAX_WMMAP_INFO; i++) {
@@ -204,9 +203,8 @@ sys_wunmap(void) {
     if (pte == 0) return FAILED;
     char* phys_addr = P2V((uintptr_t)PTE_ADDR(*pte));
     if (file != 0) {
-        ilock(file->ip);
-        writei(file->ip, phys_addr, i*PGSIZE, PGSIZE);
-        iunlock(file->ip);
+        file->off = i*PGSIZE;
+        filewrite(file, phys_addr, PGSIZE);
     }
     kfree(phys_addr);
     *pte = 0;
@@ -232,7 +230,6 @@ sys_va2pa(void) {
   pa = PTE_ADDR(*pte); 
   pa |= va & 0xFFF; 
   return pa;
-
 }
 
 int
