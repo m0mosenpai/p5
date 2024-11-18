@@ -148,20 +148,22 @@ sys_wmap(void) {
   for (i = 0; i < length / PGSIZE; i++) {
     char *mem = kalloc();
     if (mem == 0) return FAILED;
-    if (flags == filebacked) {
+    if (file != 0) {
       ilock(file->ip);
       readi(file->ip, mem, i*PGSIZE, PGSIZE);
       iunlock(file->ip);
     }
-    mappages(pgdir, (void*)(uintptr_t)(addr + i*PGSIZE), PGSIZE, V2P((uintptr_t)mem), PTE_W | PTE_U);
+    if (mappages(pgdir, (void*)(uintptr_t)(addr + i*PGSIZE), PGSIZE, V2P((uintptr_t)mem), PTE_W | PTE_U) < 0) {
+      kfree(mem);
+      return FAILED;
+    }
   }
 
   p_mmaps[free].addr = addr;
   p_mmaps[free].length = length;
   p_mmaps[free].flags = flags;
-  p_mmaps[free].file = flags == filebacked ? file : 0;
+  p_mmaps[free].file = file;
   p_mmaps[free].valid = 1;
-
   return addr;
 }
 
