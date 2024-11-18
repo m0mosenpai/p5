@@ -269,7 +269,7 @@ exit(void)
     int valid = p_mmaps[i].valid;
 
     if (valid == 1) {
-      for (int j = 0; j < length / PGSIZE; j++) {
+      for (int j = 0; j < PGROUNDUP(length) / PGSIZE; j++) {
         pte_t *pte = walkpgdir(pgdir, (void*)(uintptr_t)addr + j*PGSIZE, 0);
         char* phys_addr = P2V((uintptr_t)PTE_ADDR(*pte));
         if (file != 0) {

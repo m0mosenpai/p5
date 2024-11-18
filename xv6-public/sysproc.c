@@ -145,7 +145,7 @@ sys_wmap(void) {
   }
 
   // TO-DO: lazy mapping
-  for (i = 0; i < length / PGSIZE; i++) {
+  for (i = 0; i < PGROUNDUP(length) / PGSIZE; i++) {
     char *mem = kalloc();
     if (mem == 0) return FAILED;
     if (file != 0) {
@@ -197,7 +197,7 @@ sys_wunmap(void) {
 
   // TO-DO: lazy unmapping
   pde_t *pgdir = myproc()->pgdir;
-  for (i = 0; i < length / PGSIZE; i++) {
+  for (i = 0; i < PGROUNDUP(length) / PGSIZE; i++) {
     // va in user va space -> pa -> pa in kernel va space
     pte_t *pte = walkpgdir(pgdir, (void*)(uintptr_t)addr + i*PGSIZE, 0);
     if (pte == 0) return FAILED;
@@ -250,7 +250,7 @@ sys_getwmapinfo(void) {
     if (p_mmaps[i].valid == 1){
       wminfo->addr[i] = p_mmaps[i].addr;
       wminfo->length[i] = p_mmaps[i].length;
-      wminfo->n_loaded_pages[i] = p_mmaps[i].length / PGSIZE;
+      wminfo->n_loaded_pages[i] = PGROUNDUP(p_mmaps[i].length) / PGSIZE;
       total_mmaps++;
     }
   }
