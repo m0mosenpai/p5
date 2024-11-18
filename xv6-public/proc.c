@@ -273,9 +273,8 @@ exit(void)
         pte_t *pte = walkpgdir(pgdir, (void*)(uintptr_t)addr + j*PGSIZE, 0);
         char* phys_addr = P2V((uintptr_t)PTE_ADDR(*pte));
         if (file != 0) {
-            ilock(file->ip);
-            writei(file->ip, phys_addr, j*PGSIZE, PGSIZE);
-            iunlock(file->ip);
+            file->off = j*PGSIZE;
+            filewrite(file, phys_addr, PGSIZE);
         }
         kfree(phys_addr);
         *pte = 0;
