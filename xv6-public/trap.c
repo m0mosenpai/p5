@@ -7,13 +7,14 @@
 #include "x86.h"
 #include "traps.h"
 #include "spinlock.h"
-#include <stdint.h>
+#include "stdint.h"
 
 // Interrupt descriptor table (shared by all CPUs).
 struct gatedesc idt[256];
 extern uint vectors[];  // in vectors.S: array of 256 entry pointers
 struct spinlock tickslock;
 uint ticks;
+
 extern int mappages(pde_t *pgdir, void *va, uint size, uint pa, int perm);
 
 void
@@ -80,22 +81,25 @@ trap(struct trapframe *tf)
     lapiceoi();
     break;
   case T_PGFLT:
-    uint va = rcr2();
-    struct proc *p = myproc();
-    struct mmap *p_mmaps = p->mmaps;
-    int found =0;
-    for (int i = 0; i < MAX_WMMAP_INFO; i++) {
-        if ((p_mmaps[i].valid = 1) && (va >= p_mmaps[i].addr) && (va < p_mmaps[i].addr + p_mmaps[i].length)){
-          char *mem = kalloc();
-          if (mem == 0) p->killed=1; // or exit?
-          pde_t *pgdir = p->pgdir;
-          mappages(pgdir, (void*)(uintptr_t)(va + i*PGSIZE), PGSIZE, V2P((uintptr_t)mem), PTE_W | PTE_U);
-          found=1;
-          }
-    }
-    if (!found) {
-      cprintf("Segmentation Fault");
-      p->killed=1;}
+    /*uint va = rcr2();*/
+    /*struct proc *p = myproc();*/
+    /*struct mmap *p_mmaps = p->mmaps;*/
+    /*int found =0;*/
+    /*for (int i = 0; i < MAX_WMMAP_INFO; i++) {*/
+    /*    if ((p_mmaps[i].valid = 1) && (va >= p_mmaps[i].addr) && (va < p_mmaps[i].addr + p_mmaps[i].length)){*/
+    /*      char *mem = kalloc();*/
+    /*      if (mem == 0) p->killed=1; // or exit?*/
+    /*      pde_t *pgdir = p->pgdir;*/
+    /*      mappages(pgdir, (void*)(uintptr_t)(va + i*PGSIZE), PGSIZE, V2P((uintptr_t)mem), PTE_W | PTE_U);*/
+    /*      found=1;*/
+    /*      }*/
+    /*}*/
+    /*if (!found) {*/
+    /*  cprintf("Segmentation Fault");*/
+    /*  p->killed=1;}*/
+    /*break;*/
+    cprintf("Segmentation Fault");
+    myproc()->killed = 1;
     break;
 
   //PAGEBREAK: 13
