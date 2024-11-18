@@ -7,6 +7,9 @@
 #include "proc.h"
 #include "spinlock.h"
 #include "stdint.h"
+#include "sleeplock.h"
+#include "fs.h"
+#include "file.h"
 
 extern pte_t* walkpgdir(pde_t *pgdir, const void *va, int alloc);
 
@@ -95,6 +98,7 @@ found:
       p->mmaps[i].addr = 0;
       p->mmaps[i].length = 0;
       p->mmaps[i].flags = 0;
+      p->mmaps[i].file = 0;
       p->mmaps[i].valid = 0;
   }
 
@@ -215,6 +219,7 @@ fork(void)
       np->mmaps[i].addr = curproc->mmaps[i].addr;
       np->mmaps[i].length = curproc->mmaps[i].length;
       np->mmaps[i].flags = curproc->mmaps[i].flags;
+      np->mmaps[i].file = filedup(curproc->mmaps[i].file);
       np->mmaps[i].valid = curproc->mmaps[i].valid;
     }
   }
@@ -248,8 +253,8 @@ exit(void)
 {
   struct proc *curproc = myproc();
   pde_t *pgdir = curproc->pgdir;
+  struct mmap *p_mmaps = curproc->mmaps;
   struct proc *p;
-  struct mmap *p_mmaps;
   int fd;
   int i;
 
@@ -266,17 +271,25 @@ exit(void)
 
   // Unmap pages
   for (i = 0; i < MAX_WMMAP_INFO; i++) {
-    p_mmaps = curproc->mmaps;
-    if (p_mmaps[i].valid == 1) {
-      int addr = p_mmaps[i].addr;
-      int length = p_mmaps[i].length;
+    int addr = p_mmaps[i].addr;
+    int length = p_mmaps[i].length;
+    struct file *file = p_mmaps[i].file;
+    int valid = p_mmaps[i].valid;
+
+    if (valid == 1) {
       for (int j = 0; j < length / PGSIZE; j++) {
         pte_t *pte = walkpgdir(pgdir, (void*)(uintptr_t)addr + j*PGSIZE, 0);
-        uint phys_addr = PTE_ADDR(*pte);
-        kfree(P2V((uintptr_t)phys_addr));
+        char* phys_addr = P2V((uintptr_t)PTE_ADDR(*pte));
+        if (file != 0) {
+            ilock(file->ip);
+            writei(file->ip, phys_addr, i*PGSIZE, PGSIZE);
+            iunlock(file->ip);
+        }
+        kfree(phys_addr);
         *pte = 0;
       }
       p_mmaps[i].valid = 0;
+      if (file != 0) fileclose(file);
     }
   }
 
