@@ -93,8 +93,8 @@ trap(struct trapframe *tf)
     for (i = 0; i < MAX_WMMAP_INFO; i++) {
       int addr = p_mmaps[i].addr;
       int length = p_mmaps[i].length;
+      struct file *file = p_mmaps[i].file;
       if (addr <= c_addr && c_addr < addr + length) {
-        struct file *file = p_mmaps[i].file;
         char *mem = kalloc();
         if (mem == 0) {
           p->killed = 1;
@@ -107,16 +107,17 @@ trap(struct trapframe *tf)
         if (mappages(pgdir, (void*)(uintptr_t)(c_addr), PGSIZE, V2P((uintptr_t)mem), PTE_W | PTE_U) < 0) {
           kfree(mem);
           p->killed = 1;
+          break;
         }
         break;
       }
     }
-
     if (i >= MAX_WMMAP_INFO) {
       cprintf("Segmentation Fault\n");
       p->killed = 1;
-      break;
     }
+    lapiceoi();
+    break;
 
   //PAGEBREAK: 13
   default:
