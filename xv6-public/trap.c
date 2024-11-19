@@ -100,6 +100,7 @@ trap(struct trapframe *tf)
           p->killed = 1;
           break;
         }
+        memset(mem, 0, PGSIZE);
         if (file != 0) {
           file->off = c_addr - addr;
           fileread(file, mem, PGSIZE);
