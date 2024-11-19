@@ -268,7 +268,7 @@ exit(void)
     if (addr != -1) {
       for (int j = 0; j < PGROUNDUP(length) / PGSIZE; j++) {
         pte_t *pte = walkpgdir(pgdir, (void*)(uintptr_t)addr + j*PGSIZE, 0);
-        if (pte == 0 || *pte & PTE_P) continue;
+        if (pte == 0 || !(*pte & PTE_P)) continue;
         char* phys_addr = P2V((uintptr_t)PTE_ADDR(*pte));
         if (file != 0) filewrite(file, phys_addr, PGSIZE);
         kfree(phys_addr);
