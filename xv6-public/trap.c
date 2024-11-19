@@ -101,7 +101,7 @@ trap(struct trapframe *tf)
           break;
         }
         if (file != 0) {
-          file->off = addr - c_addr;
+          file->off = c_addr - addr;
           fileread(file, mem, PGSIZE);
         }
         if (mappages(pgdir, (void*)(uintptr_t)(c_addr), PGSIZE, V2P((uintptr_t)mem), PTE_W | PTE_U) < 0) {
