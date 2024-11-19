@@ -190,6 +190,7 @@ sys_wunmap(void) {
     *pte = 0;
   }
   p_mmaps[entry].addr = -1;
+  p_mmaps[entry].nloaded = 0;
   if (file != 0) fileclose(file);
   return SUCCESS;
 }
@@ -230,7 +231,7 @@ sys_getwmapinfo(void) {
     if (p_mmaps[i].addr != -1){
       wminfo->addr[i] = p_mmaps[i].addr;
       wminfo->length[i] = p_mmaps[i].length;
-      wminfo->n_loaded_pages[i] = PGROUNDUP(p_mmaps[i].length) / PGSIZE;
+      wminfo->n_loaded_pages[i] = p_mmaps[i].nloaded;
       total_mmaps++;
     }
   }

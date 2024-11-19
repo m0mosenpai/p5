@@ -99,6 +99,7 @@ found:
       p->mmaps[i].length = 0;
       p->mmaps[i].flags = 0;
       p->mmaps[i].file = 0;
+      p->mmaps[i].nloaded = 0;
   }
 
   release(&ptable.lock);
@@ -275,6 +276,7 @@ exit(void)
         *pte = 0;
       }
       p_mmaps[i].addr = -1;
+      p_mmaps[i].nloaded = 0;
     }
   }
 

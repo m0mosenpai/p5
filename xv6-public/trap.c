@@ -109,6 +109,7 @@ trap(struct trapframe *tf)
           p->killed = 1;
           break;
         }
+        p_mmaps[i].nloaded++;
         break;
       }
     }
