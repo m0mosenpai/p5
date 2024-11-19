@@ -191,7 +191,7 @@ sys_wunmap(void) {
   }
   p_mmaps[entry].addr = -1;
   p_mmaps[entry].nloaded = 0;
-  if (file != 0) fileclose(file);
+  if (file > 0) fileclose(file);
   return SUCCESS;
 }
 

@@ -219,7 +219,8 @@ fork(void)
       np->mmaps[i].addr = curproc->mmaps[i].addr;
       np->mmaps[i].length = curproc->mmaps[i].length;
       np->mmaps[i].flags = curproc->mmaps[i].flags;
-      np->mmaps[i].file = curproc->mmaps[i].file != 0 ? filedup(curproc->mmaps[i].file) : 0;
+      np->mmaps[i].file = curproc->mmaps[i].file;
+      np->mmaps[i].nloaded = curproc->mmaps[i].nloaded;
     }
   }
 
