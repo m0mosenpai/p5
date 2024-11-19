@@ -7,6 +7,7 @@ layout: default
 Update
 </mark>
 
+* Nov 16: submit `xv6-public` ~~solution~~ folder
 * Nov 15: xv6.py updated, runtests.py updated
 * Nov 14: test 18 updated, test.py updated
 * Nov 13: test 21 updated
@@ -24,7 +25,7 @@ End Update
 - This project is to be done on the [lab machines](https://csl.cs.wisc.edu/docs/csl/2012-08-16-instructional-facilities/), so you can learn more about programming in C on a typical UNIX-based platform (Linux).
   
 - **Handing it in**:
-  -  Copy the whole project, including solution and tests folder, to ~cs537-1/handin/login/p5 where login is your CS login.  
+  -  Copy the whole project, including `xv6-public` ~~solution~~ and `tests` folder, to ~cs537-1/handin/login/p5 where login is your CS login.  
   -  Be sure to `make clean` before handing in your solution. 
   -  Only one person from the group needs to submit the project.
 - **Slip Days**: 
