@@ -8,6 +8,9 @@
 #include "traps.h"
 #include "spinlock.h"
 #include "stdint.h"
+#include "sleeplock.h"
+#include "fs.h"
+#include "file.h"
 
 // Interrupt descriptor table (shared by all CPUs).
 struct gatedesc idt[256];
@@ -81,26 +84,37 @@ trap(struct trapframe *tf)
     lapiceoi();
     break;
   case T_PGFLT:
-    /*uint va = rcr2();*/
-    /*struct proc *p = myproc();*/
-    /*struct mmap *p_mmaps = p->mmaps;*/
-    /*int found =0;*/
-    /*for (int i = 0; i < MAX_WMMAP_INFO; i++) {*/
-    /*    if ((p_mmaps[i].valid = 1) && (va >= p_mmaps[i].addr) && (va < p_mmaps[i].addr + p_mmaps[i].length)){*/
-    /*      char *mem = kalloc();*/
-    /*      if (mem == 0) p->killed=1; // or exit?*/
-    /*      pde_t *pgdir = p->pgdir;*/
-    /*      mappages(pgdir, (void*)(uintptr_t)(va + i*PGSIZE), PGSIZE, V2P((uintptr_t)mem), PTE_W | PTE_U);*/
-    /*      found=1;*/
-    /*      }*/
-    /*}*/
-    /*if (!found) {*/
-    /*  cprintf("Segmentation Fault");*/
-    /*  p->killed=1;}*/
-    /*break;*/
-    cprintf("Segmentation Fault\n");
-    myproc()->killed = 1;
-    break;
+    uint addr = PGROUNDDOWN(rcr2());
+    struct proc *p = myproc();
+    pde_t *pgdir = p->pgdir;
+    struct mmap *p_mmaps = p->mmaps;
+    int i;
+
+    for (i = 0; i < MAX_WMMAP_INFO; i++) {
+      if (p_mmaps[i].addr == addr) {
+        struct file *file = p_mmaps[i].file;
+        char *mem = kalloc();
+        if (mem == 0) {
+          p->killed = 1;
+          break;
+        }
+        if (file != 0) {
+          file->off = p_mmaps[i].addr - addr;
+          fileread(file, mem, PGSIZE);
+        }
+        if (mappages(pgdir, (void*)(uintptr_t)(addr), PGSIZE, V2P((uintptr_t)mem), PTE_W | PTE_U) < 0) {
+          kfree(mem);
+          p->killed = 1;
+          break;
+        }
+      }
+    }
+
+    if (i >= MAX_WMMAP_INFO) {
+      cprintf("Segmentation Fault\n");
+      p->killed = 1;
+      break;
+    }
 
   //PAGEBREAK: 13
   default:
