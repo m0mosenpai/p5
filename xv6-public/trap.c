@@ -84,14 +84,16 @@ trap(struct trapframe *tf)
     lapiceoi();
     break;
   case T_PGFLT:
-    uint addr = PGROUNDDOWN(rcr2());
+    uint c_addr = PGROUNDDOWN(rcr2());
     struct proc *p = myproc();
     pde_t *pgdir = p->pgdir;
     struct mmap *p_mmaps = p->mmaps;
     int i;
 
     for (i = 0; i < MAX_WMMAP_INFO; i++) {
-      if (p_mmaps[i].addr == addr) {
+      int addr = p_mmaps[i].addr;
+      int length = p_mmaps[i].length;
+      if (addr >= c_addr && c_addr < addr + length) {
         struct file *file = p_mmaps[i].file;
         char *mem = kalloc();
         if (mem == 0) {
@@ -99,10 +101,10 @@ trap(struct trapframe *tf)
           break;
         }
         if (file != 0) {
-          file->off = p_mmaps[i].addr - addr;
+          file->off = addr - c_addr;
           fileread(file, mem, PGSIZE);
         }
-        if (mappages(pgdir, (void*)(uintptr_t)(addr), PGSIZE, V2P((uintptr_t)mem), PTE_W | PTE_U) < 0) {
+        if (mappages(pgdir, (void*)(uintptr_t)(c_addr), PGSIZE, V2P((uintptr_t)mem), PTE_W | PTE_U) < 0) {
           kfree(mem);
           p->killed = 1;
           break;

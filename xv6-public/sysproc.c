@@ -183,7 +183,7 @@ sys_wunmap(void) {
   for (i = 0; i < PGROUNDUP(length) / PGSIZE; i++) {
     // va in user va space -> pa -> pa in kernel va space
     pte_t *pte = walkpgdir(pgdir, (void*)(uintptr_t)addr + i*PGSIZE, 0);
-    if (pte == 0 || *pte & PTE_P) continue;
+    if (pte == 0 || !(*pte & PTE_P)) continue;
     char* phys_addr = P2V((uintptr_t)PTE_ADDR(*pte));
     if (file != 0) filewrite(file, phys_addr, PGSIZE);
     kfree(phys_addr);
