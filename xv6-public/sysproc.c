@@ -179,7 +179,9 @@ sys_wunmap(void) {
   if (entry == -1)
     return FAILED;
 
+  if (file != 0) file->off = 0;
   pde_t *pgdir = myproc()->pgdir;
+
   for (i = 0; i < PGROUNDUP(length) / PGSIZE; i++) {
     // va in user va space -> pa -> pa in kernel va space
     pte_t *pte = walkpgdir(pgdir, (void*)(uintptr_t)addr + i*PGSIZE, 0);
