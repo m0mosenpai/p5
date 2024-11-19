@@ -95,11 +95,10 @@ found:
   p->state = EMBRYO;
   p->pid = nextpid++;
   for (int i = 0; i < MAX_WMMAP_INFO; i++) {
-      p->mmaps[i].addr = 0;
+      p->mmaps[i].addr = -1;
       p->mmaps[i].length = 0;
       p->mmaps[i].flags = 0;
       p->mmaps[i].file = 0;
-      p->mmaps[i].valid = 0;
   }
 
   release(&ptable.lock);
@@ -215,12 +214,11 @@ fork(void)
 
   // Copy mmaps
   for (i = 0; i < MAX_WMMAP_INFO; i++) {
-    if (curproc->mmaps[i].valid == 1) {
+    if (curproc->mmaps[i].addr != -1) {
       np->mmaps[i].addr = curproc->mmaps[i].addr;
       np->mmaps[i].length = curproc->mmaps[i].length;
       np->mmaps[i].flags = curproc->mmaps[i].flags;
-      np->mmaps[i].file = filedup(curproc->mmaps[i].file);
-      np->mmaps[i].valid = curproc->mmaps[i].valid;
+      np->mmaps[i].file = curproc->mmaps[i].file != 0 ? filedup(curproc->mmaps[i].file) : 0;
     }
   }
 
@@ -266,20 +264,17 @@ exit(void)
     int addr = p_mmaps[i].addr;
     int length = p_mmaps[i].length;
     struct file *file = p_mmaps[i].file;
-    int valid = p_mmaps[i].valid;
 
-    if (valid == 1) {
+    if (addr != -1) {
       for (int j = 0; j < PGROUNDUP(length) / PGSIZE; j++) {
         pte_t *pte = walkpgdir(pgdir, (void*)(uintptr_t)addr + j*PGSIZE, 0);
+        if (pte == 0 || *pte & PTE_P) continue;
         char* phys_addr = P2V((uintptr_t)PTE_ADDR(*pte));
-        if (file != 0) {
-            file->off = j*PGSIZE;
-            filewrite(file, phys_addr, PGSIZE);
-        }
+        if (file != 0) filewrite(file, phys_addr, PGSIZE);
         kfree(phys_addr);
         *pte = 0;
       }
-      p_mmaps[i].valid = 0;
+      p_mmaps[i].addr = -1;
     }
   }
 

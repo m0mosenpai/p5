@@ -20,7 +20,6 @@ struct mmap {
     int length;
     int flags;
     struct file *file;
-    int valid;
 };
 
 //PAGEBREAK: 17

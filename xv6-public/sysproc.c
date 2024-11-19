@@ -122,7 +122,6 @@ sys_wmap(void) {
   ) return FAILED;
 
   struct proc *curproc = myproc();
-  pde_t *pgdir = myproc()->pgdir;
   struct mmap *p_mmaps = curproc->mmaps;
   struct file *file = 0;
 
@@ -133,36 +132,21 @@ sys_wmap(void) {
   }
 
   int i = 0;
-  while (p_mmaps[i].valid == 1) { i++; }
+  while (p_mmaps[i].addr != -1) { i++; }
   if (i >= MAX_WMMAP_INFO) return FAILED;
   int free = i;
 
   for (i = 0; i < MAX_WMMAP_INFO; i++) {
-    if (p_mmaps[i].valid == 0) continue;
+    if (p_mmaps[i].addr == -1) continue;
     if ((p_mmaps[i].addr <= addr && addr < p_mmaps[i].addr + p_mmaps[i].length) ||
       (p_mmaps[i].addr < addr + length && addr + length <= p_mmaps[i].addr + p_mmaps[i].length)
     ) return FAILED;
-  }
-
-  // TO-DO: lazy mapping
-  for (i = 0; i < PGROUNDUP(length) / PGSIZE; i++) {
-    char *mem = kalloc();
-    if (mem == 0) return FAILED;
-    if (file != 0) {
-      file->off = i*PGSIZE;
-      fileread(file, mem, PGSIZE);
-    }
-    if (mappages(pgdir, (void*)(uintptr_t)(addr + i*PGSIZE), PGSIZE, V2P((uintptr_t)mem), PTE_W | PTE_U) < 0) {
-      kfree(mem);
-      return FAILED;
-    }
   }
 
   p_mmaps[free].addr = addr;
   p_mmaps[free].length = length;
   p_mmaps[free].flags = flags;
   p_mmaps[free].file = file != 0 ? filedup(file) : 0;
-  p_mmaps[free].valid = 1;
   return addr;
 }
 
@@ -185,7 +169,7 @@ sys_wunmap(void) {
   int entry = -1;
 
   for (i = 0; i < MAX_WMMAP_INFO; i++) {
-    if (p_mmaps[i].addr == addr && p_mmaps[i].valid == 1) {
+    if (p_mmaps[i].addr == addr) {
       length = p_mmaps[i].length;
       file = p_mmaps[i].file;
       entry = i;
@@ -195,21 +179,17 @@ sys_wunmap(void) {
   if (entry == -1)
     return FAILED;
 
-  // TO-DO: lazy unmapping
   pde_t *pgdir = myproc()->pgdir;
   for (i = 0; i < PGROUNDUP(length) / PGSIZE; i++) {
     // va in user va space -> pa -> pa in kernel va space
     pte_t *pte = walkpgdir(pgdir, (void*)(uintptr_t)addr + i*PGSIZE, 0);
-    if (pte == 0) return FAILED;
+    if (pte == 0 || *pte & PTE_P) continue;
     char* phys_addr = P2V((uintptr_t)PTE_ADDR(*pte));
-    if (file != 0) {
-        file->off = i*PGSIZE;
-        filewrite(file, phys_addr, PGSIZE);
-    }
+    if (file != 0) filewrite(file, phys_addr, PGSIZE);
     kfree(phys_addr);
     *pte = 0;
   }
-  p_mmaps[entry].valid = 0;
+  p_mmaps[entry].addr = -1;
   if (file != 0) fileclose(file);
   return SUCCESS;
 }
@@ -247,7 +227,7 @@ sys_getwmapinfo(void) {
 
   p_mmaps = myproc()->mmaps;
   for (i = 0; i < MAX_WMMAP_INFO; i++) {
-    if (p_mmaps[i].valid == 1){
+    if (p_mmaps[i].addr != -1){
       wminfo->addr[i] = p_mmaps[i].addr;
       wminfo->length[i] = p_mmaps[i].length;
       wminfo->n_loaded_pages[i] = PGROUNDUP(p_mmaps[i].length) / PGSIZE;
