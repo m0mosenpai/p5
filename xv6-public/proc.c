@@ -228,9 +228,9 @@ fork(void)
 
       for (int j = p_mmaps[i].addr; j < p_mmaps[i].addr + p_mmaps[i].length; j += PGSIZE) {
         pte_t *pte = walkpgdir(curproc->pgdir, (void*)j, 0);
-        uint pa = PTE_ADDR(pte);
-        int flags = PTE_FLAGS(pte);
         if (pte == 0 || !(*pte & PTE_P)) continue;
+        uint pa = PTE_ADDR(*pte);
+        int flags = PTE_FLAGS(*pte);
         if (mappages(np->pgdir, (void*)j, PGSIZE, pa, flags) < 0) {
           kfree(P2V(pa));
           return -1;

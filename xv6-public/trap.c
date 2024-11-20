@@ -91,7 +91,6 @@ trap(struct trapframe *tf)
     pde_t *pgdir = p->pgdir;
     pte_t *pte = walkpgdir(pgdir, (void*)c_addr, 0);
     uint pa = PTE_ADDR(*pte);
-    int flags = PTE_FLAGS(*pte);
     struct mmap *p_mmaps = p->mmaps;
 
     if (pte && pagerefs[PFN(pa)] == 0) {
@@ -99,8 +98,8 @@ trap(struct trapframe *tf)
     }
 
     // check if pte exists
-    if (pte) {
-      if (!(*pte & PTE_W) && (*pte & PTE_OW)) {
+    if (pte && (*pte & PTE_P)) {
+      if (*pte & PTE_OW) {
           if (pagerefs[PFN(pa)] == 1) {
             *pte |= PTE_W;
           }
@@ -110,8 +109,8 @@ trap(struct trapframe *tf)
             if (mem == 0) p->killed = 1;
             else {
               memmove(mem, (char*)P2V(pa), PGSIZE);
-              /**pte &= ~PTE_P;*/
-              if (mappages(pgdir, (void*)c_addr, PGSIZE, V2P(mem), flags) < 0) {
+	      *pte = 0;
+              if (mappages(pgdir, (void*)c_addr, PGSIZE, V2P(mem), PTE_W | PTE_U) < 0) {
                 kfree(mem);
                 p->killed = 1;
               }
@@ -156,8 +155,7 @@ trap(struct trapframe *tf)
       }
       if (i >= MAX_WMMAP_INFO) {
         cprintf("Segmentation Fault\n");
-        exit();
-        /*p->killed = 1;*/
+        p->killed = 1;
       }
     }
     lapiceoi();
