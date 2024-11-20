@@ -90,22 +90,21 @@ trap(struct trapframe *tf)
     struct proc *p = myproc();
     pde_t *pgdir = p->pgdir;
     pte_t *pte = walkpgdir(pgdir, (void*)(uintptr_t)c_addr, 0);
+    int flags = PTE_FLAGS(*pte);
     struct mmap *p_mmaps = p->mmaps;
-    int i;
 
     // check if pte exists
     if (pte && (*pte & PTE_P)) {
       if (*pte & PTE_OW) {
           uint pa = PTE_ADDR(*pte);
           if (pagerefs[pa >> PTXSHIFT] == 1) {
-            *pte &= PTE_W;
+            *pte |= PTE_W;
           }
           // copy on write
           else {
             char *mem = kalloc();
             if (mem == 0) p->killed = 1;
             else {
-              int flags = PTE_FLAGS(*pte);
               memmove(P2V((uintptr_t)mem), (char*)P2V((uintptr_t)pa), PGSIZE);
               if(mappages(pgdir, (void*)(uintptr_t)c_addr, PGSIZE, V2P((uintptr_t)mem), flags) < 0) {
                 kfree(mem);
@@ -113,10 +112,10 @@ trap(struct trapframe *tf)
               }
               else {
                 pagerefs[pa >> PTXSHIFT]--;
-                lcr3(V2P((uintptr_t)pgdir));
               }
             }
           }
+          lcr3(V2P((uintptr_t)pgdir));
       }
       else {
         cprintf("Segmentation Fault\n");
@@ -124,7 +123,8 @@ trap(struct trapframe *tf)
       }
     }
     else {
-        // lazy alloc
+      // lazy alloc
+      int i;
       for (i = 0; i < MAX_WMMAP_INFO; i++) {
         int addr = p_mmaps[i].addr;
         int length = p_mmaps[i].length;

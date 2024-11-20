@@ -336,15 +336,15 @@ copyuvm(pde_t *pgdir, uint sz)
       panic("copyuvm: page not present");
 
     // set all pages to read-only for cow
-    if (*pte & PTE_W) *pte &= PTE_OW;
+    if (*pte & PTE_W) *pte |= PTE_OW;
     *pte &= ~PTE_W;
     pa = PTE_ADDR(*pte);
     flags = PTE_FLAGS(*pte);
-
     if(mappages(d, (void*)i, PGSIZE, pa, flags) < 0) {
       kfree(P2V(pa));
       goto bad;
     }
+    lcr3(V2P(pgdir));
     pagerefs[pa >> PTXSHIFT]++;
   }
   return d;

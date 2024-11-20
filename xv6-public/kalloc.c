@@ -66,7 +66,9 @@ kfree(char *v)
   if((uint)v % PGSIZE || v < end || V2P(v) >= PHYSTOP)
     panic("kfree");
 
-  if (--pagerefs[V2P(v) >> PTXSHIFT] > 0) return;
+  if (pagerefs[V2P(v) >> PTXSHIFT] > 1) {
+    pagerefs[V2P(v) >> PTXSHIFT]--;
+  }
   else {
     // Fill with junk to catch dangling refs.
     memset(v, 1, PGSIZE);
@@ -79,7 +81,6 @@ kfree(char *v)
     if(kmem.use_lock)
       release(&kmem.lock);
   }
-
 }
 
 // Allocate one 4096-byte page of physical memory.
