@@ -8,7 +8,7 @@
 #include "elf.h"
 #include "stdint.h"
 
-uint8_t pagerefs[NPAGES];
+extern uint8_t pagerefs[NPAGES];
 extern char data[];  // defined by kernel.ld
 pde_t *kpgdir;  // for use in scheduler()
 
@@ -335,17 +335,20 @@ copyuvm(pde_t *pgdir, uint sz)
     if(!(*pte & PTE_P))
       panic("copyuvm: page not present");
 
+    /*cprintf("in copyuvm\n");*/
     // set all pages to read-only for cow
-    if (*pte & PTE_W) *pte |= PTE_OW;
-    *pte &= ~PTE_W;
+    if (*pte & PTE_W) {
+      *pte &= ~PTE_W;
+      *pte |= PTE_OW;
+    }
     pa = PTE_ADDR(*pte);
     flags = PTE_FLAGS(*pte);
+    pagerefs[pa >> PTXSHIFT]++;
     if(mappages(d, (void*)i, PGSIZE, pa, flags) < 0) {
       kfree(P2V(pa));
       goto bad;
     }
     lcr3(V2P(pgdir));
-    pagerefs[pa >> PTXSHIFT]++;
   }
   return d;
 

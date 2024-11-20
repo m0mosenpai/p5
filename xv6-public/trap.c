@@ -90,28 +90,44 @@ trap(struct trapframe *tf)
     struct proc *p = myproc();
     pde_t *pgdir = p->pgdir;
     pte_t *pte = walkpgdir(pgdir, (void*)(uintptr_t)c_addr, 0);
+    uint pa = PTE_ADDR(*pte);
     int flags = PTE_FLAGS(*pte);
     struct mmap *p_mmaps = p->mmaps;
 
+    /*cprintf("pageref 1: %d\n", pagerefs[pa >> PTXSHIFT]);*/
+    if (pte && pagerefs[pa >> PTXSHIFT] == 0)
+      pte = 0;
+
     // check if pte exists
-    if (pte && (*pte & PTE_P)) {
+    if (pte) {
+      /*if (*pte & PTE_P) {*/
+      /*    cprintf("P set: %d\n", pagerefs[pa >> PTXSHIFT]);*/
+      /*}*/
+      /*cprintf("pageref 2: %d\n", pagerefs[pa >> PTXSHIFT]);*/
       if (*pte & PTE_OW) {
-          uint pa = PTE_ADDR(*pte);
+      /*cprintf("pageref 3: %d\n", pagerefs[pa >> PTXSHIFT]);*/
           if (pagerefs[pa >> PTXSHIFT] == 1) {
             *pte |= PTE_W;
           }
           // copy on write
           else {
+            /*cprintf("pageref 4: %d\n", pagerefs[pa >> PTXSHIFT]);*/
             char *mem = kalloc();
             if (mem == 0) p->killed = 1;
             else {
-              memmove(P2V((uintptr_t)mem), (char*)P2V((uintptr_t)pa), PGSIZE);
-              if(mappages(pgdir, (void*)(uintptr_t)c_addr, PGSIZE, V2P((uintptr_t)mem), flags) < 0) {
+              /*cprintf("pageref 5: %d\n", pagerefs[pa >> PTXSHIFT]);*/
+              memmove(mem, (char*)P2V((uintptr_t)pa), PGSIZE);
+              /*cprintf("pageref 6: %d\n", pagerefs[pa >> PTXSHIFT]);*/
+              /*cprintf("addr: %p\n", c_addr);*/
+              *pte &= ~PTE_P;
+              if (mappages(pgdir, (void*)(uintptr_t)c_addr, PGSIZE, V2P((uintptr_t)mem), flags) < 0) {
+                /*cprintf("pageref 7: %d\n", pagerefs[pa >> PTXSHIFT]);*/
                 kfree(mem);
                 p->killed = 1;
               }
               else {
                 pagerefs[pa >> PTXSHIFT]--;
+                /*cprintf("pageref 8: %d\n", pagerefs[pa >> PTXSHIFT]);*/
               }
             }
           }
@@ -151,7 +167,8 @@ trap(struct trapframe *tf)
       }
       if (i >= MAX_WMMAP_INFO) {
         cprintf("Segmentation Fault\n");
-        p->killed = 1;
+        exit();
+        /*p->killed = 1;*/
       }
     }
     lapiceoi();
