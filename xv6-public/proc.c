@@ -10,6 +10,7 @@
 #include "sleeplock.h"
 #include "fs.h"
 #include "file.h"
+#include "stdint.h"
 
 extern pte_t* walkpgdir(pde_t *pgdir, const void *va, int alloc);
 
@@ -271,9 +272,10 @@ exit(void)
       for (int j = 0; j < PGROUNDUP(length) / PGSIZE; j++) {
         pte_t *pte = walkpgdir(pgdir, (void*)(uintptr_t)addr + j*PGSIZE, 0);
         if (pte == 0 || !(*pte & PTE_P)) continue;
-        char* phys_addr = P2V((uintptr_t)PTE_ADDR(*pte));
-        if (file != 0) filewrite(file, phys_addr, PGSIZE);
-        kfree(phys_addr);
+        uint pa = PTE_ADDR(*pte);
+        char* pva = P2V((uintptr_t)pa);
+        if (file != 0) filewrite(file, pva, PGSIZE);
+        kfree(pva);
         *pte = 0;
       }
       p_mmaps[i].addr = -1;

@@ -18,6 +18,8 @@ extern uint vectors[];  // in vectors.S: array of 256 entry pointers
 struct spinlock tickslock;
 uint ticks;
 
+extern uint8_t pagerefs[NPAGES];
+extern pte_t* walkpgdir(pde_t *pgdir, const void *va, int alloc);
 extern int mappages(pde_t *pgdir, void *va, uint size, uint pa, int perm);
 
 void
@@ -87,36 +89,70 @@ trap(struct trapframe *tf)
     uint c_addr = PGROUNDDOWN(rcr2());
     struct proc *p = myproc();
     pde_t *pgdir = p->pgdir;
+    pte_t *pte = walkpgdir(pgdir, (void*)(uintptr_t)c_addr, 0);
     struct mmap *p_mmaps = p->mmaps;
     int i;
 
-    for (i = 0; i < MAX_WMMAP_INFO; i++) {
-      int addr = p_mmaps[i].addr;
-      int length = p_mmaps[i].length;
-      struct file *file = p_mmaps[i].file;
-      if (addr <= c_addr && c_addr < addr + length) {
-        char *mem = kalloc();
-        if (mem == 0) {
-          p->killed = 1;
-          break;
-        }
-        memset(mem, 0, PGSIZE);
-        if (file != 0) {
-          file->off = c_addr - addr;
-          fileread(file, mem, PGSIZE);
-        }
-        if (mappages(pgdir, (void*)(uintptr_t)(c_addr), PGSIZE, V2P((uintptr_t)mem), PTE_W | PTE_U) < 0) {
-          kfree(mem);
-          p->killed = 1;
-          break;
-        }
-        p_mmaps[i].nloaded++;
-        break;
+    // check if pte exists
+    if (pte && (*pte & PTE_P)) {
+      if (*pte & PTE_OW) {
+          uint pa = PTE_ADDR(*pte);
+          if (pagerefs[pa >> PTXSHIFT] == 1) {
+            *pte &= PTE_W;
+          }
+          // copy on write
+          else {
+            char *mem = kalloc();
+            if (mem == 0) p->killed = 1;
+            else {
+              int flags = PTE_FLAGS(*pte);
+              memmove(P2V((uintptr_t)mem), (char*)P2V((uintptr_t)pa), PGSIZE);
+              if(mappages(pgdir, (void*)(uintptr_t)c_addr, PGSIZE, V2P((uintptr_t)mem), flags) < 0) {
+                kfree(mem);
+                p->killed = 1;
+              }
+              else {
+                pagerefs[pa >> PTXSHIFT]--;
+                lcr3(V2P((uintptr_t)pgdir));
+              }
+            }
+          }
+      }
+      else {
+        cprintf("Segmentation Fault\n");
+        p->killed = 1;
       }
     }
-    if (i >= MAX_WMMAP_INFO) {
-      cprintf("Segmentation Fault\n");
-      p->killed = 1;
+    else {
+        // lazy alloc
+      for (i = 0; i < MAX_WMMAP_INFO; i++) {
+        int addr = p_mmaps[i].addr;
+        int length = p_mmaps[i].length;
+        struct file *file = p_mmaps[i].file;
+        if (addr <= c_addr && c_addr < addr + length) {
+          char *mem = kalloc();
+          if (mem == 0) {
+            p->killed = 1;
+            break;
+          }
+          memset(mem, 0, PGSIZE);
+          if (file != 0) {
+            file->off = c_addr - addr;
+            fileread(file, mem, PGSIZE);
+          }
+          if (mappages(pgdir, (void*)(uintptr_t)(c_addr), PGSIZE, V2P((uintptr_t)mem), PTE_W | PTE_U) < 0) {
+            kfree(mem);
+            p->killed = 1;
+            break;
+          }
+          p_mmaps[i].nloaded++;
+          break;
+        }
+      }
+      if (i >= MAX_WMMAP_INFO) {
+        cprintf("Segmentation Fault\n");
+        p->killed = 1;
+      }
     }
     lapiceoi();
     break;

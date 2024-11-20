@@ -6,7 +6,9 @@
 #include "mmu.h"
 #include "proc.h"
 #include "elf.h"
+#include "stdint.h"
 
+uint8_t pagerefs[NPAGES];
 extern char data[];  // defined by kernel.ld
 pde_t *kpgdir;  // for use in scheduler()
 
@@ -324,7 +326,6 @@ copyuvm(pde_t *pgdir, uint sz)
   pde_t *d;
   pte_t *pte;
   uint pa, i, flags;
-  char *mem;
 
   if((d = setupkvm()) == 0)
     return 0;
@@ -333,15 +334,18 @@ copyuvm(pde_t *pgdir, uint sz)
       panic("copyuvm: pte should exist");
     if(!(*pte & PTE_P))
       panic("copyuvm: page not present");
+
+    // set all pages to read-only for cow
+    if (*pte & PTE_W) *pte &= PTE_OW;
+    *pte &= ~PTE_W;
     pa = PTE_ADDR(*pte);
     flags = PTE_FLAGS(*pte);
-    if((mem = kalloc()) == 0)
-      goto bad;
-    memmove(mem, (char*)P2V(pa), PGSIZE);
-    if(mappages(d, (void*)i, PGSIZE, V2P(mem), flags) < 0) {
-      kfree(mem);
+
+    if(mappages(d, (void*)i, PGSIZE, pa, flags) < 0) {
+      kfree(P2V(pa));
       goto bad;
     }
+    pagerefs[pa >> PTXSHIFT]++;
   }
   return d;
 

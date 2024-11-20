@@ -6,7 +6,6 @@
 #include "memlayout.h"
 #include "mmu.h"
 #include "proc.h"
-#include "vm.h"
 #include "stdint.h"
 #include "spinlock.h"
 #include "sleeplock.h"
@@ -184,9 +183,10 @@ sys_wunmap(void) {
     // va in user va space -> pa -> pa in kernel va space
     pte_t *pte = walkpgdir(pgdir, (void*)(uintptr_t)addr + i*PGSIZE, 0);
     if (pte == 0 || !(*pte & PTE_P)) continue;
-    char* phys_addr = P2V((uintptr_t)PTE_ADDR(*pte));
-    if (file != 0) filewrite(file, phys_addr, PGSIZE);
-    kfree(phys_addr);
+    uint pa = PTE_ADDR(*pte);
+    char* pva = P2V((uintptr_t)pa);
+    if (file != 0) filewrite(file, pva, PGSIZE);
+    kfree(pva);
     *pte = 0;
   }
   p_mmaps[entry].addr = -1;
