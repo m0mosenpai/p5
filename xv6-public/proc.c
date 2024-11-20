@@ -226,8 +226,8 @@ fork(void)
       np->mmaps[i].file = p_mmaps[i].file;
       np->mmaps[i].nloaded = p_mmaps[i].nloaded;
 
-      for (int j = 0; j < p_mmaps[i].addr + p_mmaps[i].length; j += PGSIZE) {
-        pte_t *pte = walkpgdir(np->pgdir, (void*)(uintptr_t)j, 0);
+      for (int j = p_mmaps[i].addr; j < p_mmaps[i].addr + p_mmaps[i].length; j += PGSIZE) {
+        pte_t *pte = walkpgdir(curproc->pgdir, (void*)(uintptr_t)j, 0);
         uint pa = PTE_ADDR((uintptr_t)pte);
         int flags = PTE_FLAGS((uintptr_t)pte);
         if (pte == 0 || !(*pte & PTE_P)) continue;
