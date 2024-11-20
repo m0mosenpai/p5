@@ -12,7 +12,9 @@
 #include "file.h"
 #include "stdint.h"
 
+extern uint8_t pagerefs[NPAGES];
 extern pte_t* walkpgdir(pde_t *pgdir, const void *va, int alloc);
+extern int mappages(pde_t *pgdir, void *va, uint size, uint pa, int perm);
 
 struct {
   struct spinlock lock;
@@ -216,12 +218,25 @@ fork(void)
 
   // Copy mmaps
   for (i = 0; i < MAX_WMMAP_INFO; i++) {
-    if (curproc->mmaps[i].addr != -1) {
-      np->mmaps[i].addr = curproc->mmaps[i].addr;
-      np->mmaps[i].length = curproc->mmaps[i].length;
-      np->mmaps[i].flags = curproc->mmaps[i].flags;
-      np->mmaps[i].file = curproc->mmaps[i].file;
-      np->mmaps[i].nloaded = curproc->mmaps[i].nloaded;
+    struct mmap *p_mmaps = curproc->mmaps;
+    if (p_mmaps[i].addr != -1) {
+      np->mmaps[i].addr = p_mmaps[i].addr;
+      np->mmaps[i].length = p_mmaps[i].length;
+      np->mmaps[i].flags = p_mmaps[i].flags;
+      np->mmaps[i].file = p_mmaps[i].file;
+      np->mmaps[i].nloaded = p_mmaps[i].nloaded;
+
+      for (int j = 0; j < p_mmaps[i].addr + p_mmaps[i].length; j += PGSIZE) {
+        pte_t *pte = walkpgdir(np->pgdir, (void*)(uintptr_t)j, 0);
+        uint pa = PTE_ADDR((uintptr_t)pte);
+        int flags = PTE_FLAGS((uintptr_t)pte);
+        if (pte == 0 || !(*pte & PTE_P)) continue;
+        if (mappages(np->pgdir, (void*)(uintptr_t)j, PGSIZE, pa, flags) < 0) {
+          kfree(P2V((uintptr_t)pa));
+          return -1;
+        }
+        pagerefs[pa >> PTXSHIFT]++;
+      }
     }
   }
 
@@ -267,6 +282,7 @@ exit(void)
     int addr = p_mmaps[i].addr;
     int length = p_mmaps[i].length;
     struct file *file = p_mmaps[i].file;
+    if (file != 0) file->off = 0;
 
     if (addr != -1) {
       for (int j = 0; j < PGROUNDUP(length) / PGSIZE; j++) {
