@@ -94,41 +94,29 @@ trap(struct trapframe *tf)
     int flags = PTE_FLAGS(*pte);
     struct mmap *p_mmaps = p->mmaps;
 
-    /*cprintf("pageref 1: %d\n", pagerefs[pa >> PTXSHIFT]);*/
     if (pte && pagerefs[PFN(pa)] == 0) {
       pte = 0;
     }
 
     // check if pte exists
     if (pte) {
-      /*if (*pte & PTE_P) {*/
-      /*    cprintf("P set: %d\n", pagerefs[pa >> PTXSHIFT]);*/
-      /*}*/
-      /*cprintf("pageref 2: %d\n", pagerefs[pa >> PTXSHIFT]);*/
-      if (*pte & PTE_OW) {
-      /*cprintf("pageref 3: %d\n", pagerefs[pa >> PTXSHIFT]);*/
+      if (!(*pte & PTE_W) && (*pte & PTE_OW)) {
           if (pagerefs[PFN(pa)] == 1) {
             *pte |= PTE_W;
           }
           // copy on write
           else {
-            /*cprintf("pageref 4: %d\n", pagerefs[pa >> PTXSHIFT]);*/
             char *mem = kalloc();
             if (mem == 0) p->killed = 1;
             else {
-              /*cprintf("pageref 5: %d\n", pagerefs[pa >> PTXSHIFT]);*/
               memmove(mem, (char*)P2V(pa), PGSIZE);
-              /*cprintf("pageref 6: %d\n", pagerefs[pa >> PTXSHIFT]);*/
-              /*cprintf("addr: %p\n", c_addr);*/
               /**pte &= ~PTE_P;*/
               if (mappages(pgdir, (void*)c_addr, PGSIZE, V2P(mem), flags) < 0) {
-                /*cprintf("pageref 7: %d\n", pagerefs[pa >> PTXSHIFT]);*/
                 kfree(mem);
                 p->killed = 1;
               }
               else {
                 pagerefs[PFN(pa)]--;
-                /*cprintf("pageref 8: %d\n", pagerefs[pa >> PTXSHIFT]);*/
               }
             }
           }

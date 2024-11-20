@@ -335,7 +335,6 @@ copyuvm(pde_t *pgdir, uint sz)
     if(!(*pte & PTE_P))
       panic("copyuvm: page not present");
 
-    /*cprintf("in copyuvm\n");*/
     // set all pages to read-only for cow
     if (*pte & PTE_W) {
       *pte &= ~PTE_W;
