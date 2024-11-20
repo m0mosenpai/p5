@@ -13,7 +13,7 @@
 void freerange(void *vstart, void *vend);
 extern char end[]; // first address after kernel loaded from ELF file
                    // defined by the kernel linker script in kernel.ld
-uint8_t pagerefs[NPAGES] = {0};
+unsigned char pagerefs[NPAGES] = {0};
 
 struct run {
   struct run *next;
@@ -66,8 +66,8 @@ kfree(char *v)
   if((uint)v % PGSIZE || v < end || V2P(v) >= PHYSTOP)
     panic("kfree");
 
-  if (pagerefs[V2P(v) >> PTXSHIFT] > 1) {
-    pagerefs[V2P(v) >> PTXSHIFT]--;
+  if (pagerefs[PFN(V2P(v))] > 1) {
+    pagerefs[PFN(V2P(v))]--;
   }
   else {
     // Fill with junk to catch dangling refs.
@@ -99,6 +99,6 @@ kalloc(void)
   if(kmem.use_lock)
     release(&kmem.lock);
 
-  pagerefs[V2P(r) >> PTXSHIFT] = 1;
+  pagerefs[PFN(V2P(r))] = 1;
   return (char*)r;
 }

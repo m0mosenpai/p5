@@ -18,7 +18,7 @@ extern uint vectors[];  // in vectors.S: array of 256 entry pointers
 struct spinlock tickslock;
 uint ticks;
 
-extern uint8_t pagerefs[NPAGES];
+extern unsigned char pagerefs[NPAGES];
 extern pte_t* walkpgdir(pde_t *pgdir, const void *va, int alloc);
 extern int mappages(pde_t *pgdir, void *va, uint size, uint pa, int perm);
 
@@ -89,14 +89,15 @@ trap(struct trapframe *tf)
     uint c_addr = PGROUNDDOWN(rcr2());
     struct proc *p = myproc();
     pde_t *pgdir = p->pgdir;
-    pte_t *pte = walkpgdir(pgdir, (void*)(uintptr_t)c_addr, 0);
+    pte_t *pte = walkpgdir(pgdir, (void*)c_addr, 0);
     uint pa = PTE_ADDR(*pte);
     int flags = PTE_FLAGS(*pte);
     struct mmap *p_mmaps = p->mmaps;
 
     /*cprintf("pageref 1: %d\n", pagerefs[pa >> PTXSHIFT]);*/
-    if (pte && pagerefs[pa >> PTXSHIFT] == 0)
+    if (pte && pagerefs[PFN(pa)] == 0) {
       pte = 0;
+    }
 
     // check if pte exists
     if (pte) {
@@ -106,7 +107,7 @@ trap(struct trapframe *tf)
       /*cprintf("pageref 2: %d\n", pagerefs[pa >> PTXSHIFT]);*/
       if (*pte & PTE_OW) {
       /*cprintf("pageref 3: %d\n", pagerefs[pa >> PTXSHIFT]);*/
-          if (pagerefs[pa >> PTXSHIFT] == 1) {
+          if (pagerefs[PFN(pa)] == 1) {
             *pte |= PTE_W;
           }
           // copy on write
@@ -116,22 +117,22 @@ trap(struct trapframe *tf)
             if (mem == 0) p->killed = 1;
             else {
               /*cprintf("pageref 5: %d\n", pagerefs[pa >> PTXSHIFT]);*/
-              memmove(mem, (char*)P2V((uintptr_t)pa), PGSIZE);
+              memmove(mem, (char*)P2V(pa), PGSIZE);
               /*cprintf("pageref 6: %d\n", pagerefs[pa >> PTXSHIFT]);*/
               /*cprintf("addr: %p\n", c_addr);*/
-              *pte &= ~PTE_P;
-              if (mappages(pgdir, (void*)(uintptr_t)c_addr, PGSIZE, V2P((uintptr_t)mem), flags) < 0) {
+              /**pte &= ~PTE_P;*/
+              if (mappages(pgdir, (void*)c_addr, PGSIZE, V2P(mem), flags) < 0) {
                 /*cprintf("pageref 7: %d\n", pagerefs[pa >> PTXSHIFT]);*/
                 kfree(mem);
                 p->killed = 1;
               }
               else {
-                pagerefs[pa >> PTXSHIFT]--;
+                pagerefs[PFN(pa)]--;
                 /*cprintf("pageref 8: %d\n", pagerefs[pa >> PTXSHIFT]);*/
               }
             }
           }
-          lcr3(V2P((uintptr_t)pgdir));
+          lcr3(V2P(pgdir));
       }
       else {
         cprintf("Segmentation Fault\n");
@@ -156,7 +157,7 @@ trap(struct trapframe *tf)
             file->off = c_addr - addr;
             fileread(file, mem, PGSIZE);
           }
-          if (mappages(pgdir, (void*)(uintptr_t)(c_addr), PGSIZE, V2P((uintptr_t)mem), PTE_W | PTE_U) < 0) {
+          if (mappages(pgdir, (void*)(c_addr), PGSIZE, V2P(mem), PTE_W | PTE_U) < 0) {
             kfree(mem);
             p->killed = 1;
             break;

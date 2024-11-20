@@ -8,7 +8,7 @@
 #include "elf.h"
 #include "stdint.h"
 
-extern uint8_t pagerefs[NPAGES];
+extern unsigned char pagerefs[NPAGES];
 extern char data[];  // defined by kernel.ld
 pde_t *kpgdir;  // for use in scheduler()
 
@@ -343,7 +343,7 @@ copyuvm(pde_t *pgdir, uint sz)
     }
     pa = PTE_ADDR(*pte);
     flags = PTE_FLAGS(*pte);
-    pagerefs[pa >> PTXSHIFT]++;
+    pagerefs[PFN(pa)]++;
     if(mappages(d, (void*)i, PGSIZE, pa, flags) < 0) {
       kfree(P2V(pa));
       goto bad;

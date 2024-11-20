@@ -12,7 +12,7 @@
 #include "file.h"
 #include "stdint.h"
 
-extern uint8_t pagerefs[NPAGES];
+extern unsigned char pagerefs[NPAGES];
 extern pte_t* walkpgdir(pde_t *pgdir, const void *va, int alloc);
 extern int mappages(pde_t *pgdir, void *va, uint size, uint pa, int perm);
 
@@ -227,15 +227,15 @@ fork(void)
       np->mmaps[i].nloaded = p_mmaps[i].nloaded;
 
       for (int j = p_mmaps[i].addr; j < p_mmaps[i].addr + p_mmaps[i].length; j += PGSIZE) {
-        pte_t *pte = walkpgdir(curproc->pgdir, (void*)(uintptr_t)j, 0);
-        uint pa = PTE_ADDR((uintptr_t)pte);
-        int flags = PTE_FLAGS((uintptr_t)pte);
+        pte_t *pte = walkpgdir(curproc->pgdir, (void*)j, 0);
+        uint pa = PTE_ADDR(pte);
+        int flags = PTE_FLAGS(pte);
         if (pte == 0 || !(*pte & PTE_P)) continue;
-        if (mappages(np->pgdir, (void*)(uintptr_t)j, PGSIZE, pa, flags) < 0) {
-          kfree(P2V((uintptr_t)pa));
+        if (mappages(np->pgdir, (void*)j, PGSIZE, pa, flags) < 0) {
+          kfree(P2V(pa));
           return -1;
         }
-        pagerefs[pa >> PTXSHIFT]++;
+        pagerefs[PFN(pa)]++;
       }
     }
   }
@@ -286,10 +286,10 @@ exit(void)
 
     if (addr != -1) {
       for (int j = 0; j < PGROUNDUP(length) / PGSIZE; j++) {
-        pte_t *pte = walkpgdir(pgdir, (void*)(uintptr_t)addr + j*PGSIZE, 0);
+        pte_t *pte = walkpgdir(pgdir, (void*)addr + j*PGSIZE, 0);
         if (pte == 0 || !(*pte & PTE_P)) continue;
         uint pa = PTE_ADDR(*pte);
-        char* pva = P2V((uintptr_t)pa);
+        char* pva = P2V(pa);
         if (file != 0) filewrite(file, pva, PGSIZE);
         kfree(pva);
         *pte = 0;

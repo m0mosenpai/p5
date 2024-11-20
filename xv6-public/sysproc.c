@@ -183,10 +183,10 @@ sys_wunmap(void) {
 
   for (i = 0; i < PGROUNDUP(length) / PGSIZE; i++) {
     // va in user va space -> pa -> pa in kernel va space
-    pte_t *pte = walkpgdir(pgdir, (void*)(uintptr_t)addr + i*PGSIZE, 0);
+    pte_t *pte = walkpgdir(pgdir, (void*)addr + i*PGSIZE, 0);
     if (pte == 0 || !(*pte & PTE_P)) continue;
     uint pa = PTE_ADDR(*pte);
-    char* pva = P2V((uintptr_t)pa);
+    char* pva = P2V(pa);
     if (file != 0) filewrite(file, pva, PGSIZE);
     kfree(pva);
     *pte = 0;
@@ -206,7 +206,7 @@ sys_va2pa(void) {
     return FAILED;
 
   pde_t *pgdir = myproc()->pgdir;  
-  pte_t *pte = walkpgdir(pgdir, (void *)(uintptr_t)va, 0);
+  pte_t *pte = walkpgdir(pgdir, (void *)va, 0);
   if (!pte || !(*pte & PTE_P))
     return FAILED; 
 

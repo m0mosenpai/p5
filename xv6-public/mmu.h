@@ -72,6 +72,7 @@ struct segdesc {
 
 // pages in 32-bit address space
 #define NPAGES          1 << 20
+#define PFN(a)          ((uint)a >> 12)
 
 // page directory index
 #define PDX(va)         (((uint)(va) >> PDXSHIFT) & 0x3FF)
